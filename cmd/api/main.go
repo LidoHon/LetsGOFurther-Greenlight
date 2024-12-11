@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 
@@ -15,6 +20,9 @@ const version = "1.0.0"
 type config struct{
 	port int
 	env string
+	db struct{
+		dsn string
+	}
 }
 
 type application struct{
@@ -24,13 +32,37 @@ type application struct{
 
 
 func main(){
+	err := godotenv.Load("../../.env")
+	if err != nil{
+		log.Fatalf("error loading the enviromental variable")
+	}
+	log.Println("Successfully loaded .env file")
+
+	dsn := os.Getenv("DB_DSN")
+	log.Printf("DB_DSN: %s", dsn)
 	var cfg config
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	
+
+	flag.StringVar(&cfg.db.dsn, "db-dsn",dsn, "PostgreSQL DSN")
+
 	flag.Parse()
 
+	if cfg.db.dsn == "" {
+		log.Fatal("DB_DSN not set")
+	}
+
 	logger :=log.New(os.Stdout, "", log.Ldate | log.Ltime)
+
+	db, err := openDB(cfg)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer db.Close()
+
+	logger.Printf("database connected")
 
 	app :=&application{
 		config: cfg,
@@ -48,7 +80,23 @@ func main(){
 	}
 
 	logger.Printf("starting %s server on %s", cfg.env, srv.Addr)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	logger.Fatal(err)
 
+}
+
+func openDB(cfg config)(*sql.DB, error){
+	db, err := sql.Open("postgres", cfg.db.dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = db.PingContext(ctx)
+	if err != nil{
+		return nil, err
+	}
+	return db, nil
 }
