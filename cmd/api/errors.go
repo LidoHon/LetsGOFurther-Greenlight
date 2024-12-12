@@ -12,7 +12,7 @@ func (app *application)logError(r *http.Request, err error){
 }
 
 func (app *application) errorResonse( w http.ResponseWriter, r *http.Request, status int, message interface{}){
-	env := envelop{
+	env := envelope{
 		"error": message}
 
 		if err := app.writeJSON(w, status, env, nil); err !=nil{

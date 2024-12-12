@@ -84,20 +84,28 @@ func ValidateMovie(v *validator.Validator,  movie *Movie) {
 		return &movie, nil
 	}
 
-	func (m MovieModel) GetAll() ([]*Movie, error){
-		query := `SELECT id, created_at, title, year, runtime, genres, version FROM movies ORDER BY id ASC`
+	func (m MovieModel) GetAll (title string, genres []string, filters Filters) ([]*Movie, error){
+		
+		query := `
+			SELECT id, created_at, title, year, runtime, genres, version
+			FROM movies
+			WHERE (LOWER(title) = LOWER($1) OR $1 = '')
+			AND (genres @> $2 OR $2 = '{}')
+			ORDER BY id`
 
-		var movies []*Movie
+		
 		ctx, cancel := context.WithTimeout(context.Background(), 10 *time.Second)
 
 		defer cancel()
 
 
-		rows, err := m.DB.QueryContext(ctx, query)
+		rows, err := m.DB.QueryContext(ctx, query, title, pq.Array(genres))
 		if err != nil{
 			return nil, err
 		}
 		defer rows.Close()
+
+		var movies []*Movie
 
 		for rows.Next(){
 			var movie Movie

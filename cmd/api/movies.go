@@ -48,7 +48,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
 
-	err = app.writeJSON(w, http.StatusCreated, envelop{"movie": movie}, headers)
+	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
 	if err != nil{
 		app.serverErrorResponse(w, r, err)
 	}
@@ -81,7 +81,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	// app.logger.Println("Movie fetched successfully. Sending response.")
 
 
-	err = app.writeJSON(w, http.StatusOK,envelop{"movie": movie} , nil)
+	err = app.writeJSON(w, http.StatusOK,envelope{"movie": movie} , nil)
 	if err !=nil{
 		// app.logger.Println("Error writing JSON response:", err)
 		app.serverErrorResponse(w,r,err)
@@ -90,18 +90,39 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func(app *application) ListMoviesHandler( w http.ResponseWriter, r *http.Request){
-	movies, err := app.models.Movies.GetAll()
-	if err !=nil{
-		switch{
-		case errors.Is(err, data.ErrRecordNotFound):
-			app.notFoundResponse(w, r)
-		default:
-			app.serverErrorResponse(w, r, err)
-		}
-		return
+
+	var input struct{
+		Title string
+		Genres []string
+		data.Filters
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelop{"movies": movies}, nil)
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Title = app.readString(qs, "title", "")
+
+	input.Genres = app.readCSV(qs, "genres", []string{})
+
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortSafelist = []string{"id", "title", "year","runtime", "-id", "-title","-year","-runtime"}
+
+	if data.ValidateFilters(v, input.Filters);!v.Valid(){
+		app.failedValidationResponse(w,r, v.Errors)
+		return
+	}
+	// fmt.Fprintf(w, "%+v\n", input)
+
+
+	movies, err := app.models.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	if err !=nil{
+		app.serverErrorResponse(w,r,err)
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
 
 	if err !=nil{
 		app.serverErrorResponse(w, r, err)
@@ -175,7 +196,7 @@ func (app *application) updateMovieHandler( w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelop{"movie": movie}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
 
 	if err !=nil {
 		app.serverErrorResponse(w, r, err)
@@ -202,7 +223,7 @@ func (app *application) DeleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelop{"message": "movie sucessfully deleted"}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "movie sucessfully deleted"}, nil)
 	if err !=nil{
 		app.serverErrorResponse(w, r, err)
 	}
