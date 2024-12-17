@@ -16,14 +16,14 @@ const (
 	LevelError
 	LevelFatal
 	LevelOff
-
 )
-type Writer interface{
+
+type Writer interface {
 	write(p []byte) (n int, err error)
 }
 
-func (l Level) String() string{
-	switch l{
+func (l Level) String() string {
+	switch l {
 	case LevelInfo:
 		return "INFO"
 	case LevelError:
@@ -35,52 +35,51 @@ func (l Level) String() string{
 	}
 }
 
-
-type Logger struct{
-	out    		io.Writer
-	minLevel 	Level
-	mu 			sync.Mutex
+type Logger struct {
+	out      io.Writer
+	minLevel Level
+	mu       sync.Mutex
 }
-func New(out io.Writer, minLevel Level) *Logger{
+
+func New(out io.Writer, minLevel Level) *Logger {
 	return &Logger{
-		out: out,
+		out:      out,
 		minLevel: minLevel,
 	}
 }
 
-func (l *Logger) PrintError( err error, properties map[string]string){
+func (l *Logger) PrintError(err error, properties map[string]string) {
 	l.print(LevelError, err.Error(), properties)
 }
 
-func(l *Logger) PrintInfo( message string, properties map[string]string){
+func (l *Logger) PrintInfo(message string, properties map[string]string) {
 	l.print(LevelInfo, message, properties)
 }
 
-func(l *Logger) PrintFatal( err error, properties map[string]string){
-	l.print(LevelFatal,  err.Error(), properties)
+func (l *Logger) PrintFatal(err error, properties map[string]string) {
+	l.print(LevelFatal, err.Error(), properties)
 	os.Exit(1)
 }
-func(l *Logger) print( level Level, message string, properties map[string]string)(int, error){
-	if level < l.minLevel{
+func (l *Logger) print(level Level, message string, properties map[string]string) (int, error) {
+	if level < l.minLevel {
 		return 0, nil
 	}
 
-	aux := struct{
-		Level    	string 		`json:"level"`
-		Time     	string 		`json:"time"`
-		Message 	string 		`json:"message"`
-		Properties 	map[string]string `json:"properties,omitempty"`
-		Trace  		string 		`json:"trace,omitempty"`
+	aux := struct {
+		Level      string            `json:"level"`
+		Time       string            `json:"time"`
+		Message    string            `json:"message"`
+		Properties map[string]string `json:"properties,omitempty"`
+		Trace      string            `json:"trace,omitempty"`
 	}{
-		Level: 	level.String(),
-		Time:	time.Now().UTC().Format(time.RFC3339),
-		Message: message,
+		Level:      level.String(),
+		Time:       time.Now().UTC().Format(time.RFC3339),
+		Message:    message,
 		Properties: properties,
 	}
 
-
-	if level >= LevelError{
-		aux.Trace =  string(debug.Stack())
+	if level >= LevelError {
+		aux.Trace = string(debug.Stack())
 	}
 
 	var line []byte
@@ -96,7 +95,6 @@ func(l *Logger) print( level Level, message string, properties map[string]string
 	return l.out.Write(append(line, '\n'))
 }
 
-func (l *Logger) Write(message []byte)(n int, err error){
+func (l *Logger) Write(message []byte) (n int, err error) {
 	return l.print(LevelError, string(message), nil)
 }
-

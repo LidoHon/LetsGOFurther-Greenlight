@@ -32,11 +32,11 @@ const html = `
 	</body>
 </html>`
 
-func main(){
+func main() {
 	addr := flag.String("addr", ":9000", "server address")
 	flag.Parse()
 	log.Printf("starting server on %s", *addr)
-	err := http.ListenAndServe(*addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+	err := http.ListenAndServe(*addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(html))
 	}))
 	log.Fatal(err)
