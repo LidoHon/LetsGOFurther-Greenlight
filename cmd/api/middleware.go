@@ -2,15 +2,18 @@ package main
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/LidoHon/LetsGOFurther-Greenlight.git/internal/data"
 	"github.com/LidoHon/LetsGOFurther-Greenlight.git/internal/validator"
+	"github.com/felixge/httpsnoop"
 	"golang.org/x/time/rate"
 )
 
@@ -195,4 +198,27 @@ func (app *application) enableCORS(next http.Handler) http.Handler{
 	})
 }
 
+func (app *application) metrices(next http.Handler) http.Handler{
+	totalRequestRecived:= expvar.NewInt("total_requests_recived")
+	totalResponseSent := expvar.NewInt("total_response_sent")
+	totalProccessingTimeMicrosecond:=expvar.NewInt("total_processing_time_μs")
+
+	totalResponseSentByStatus := expvar.NewMap("total_response_sent_by_status")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+		
+		totalRequestRecived.Add(1)
+	
+		metrics := httpsnoop.CaptureMetrics(next, w, r)
+
+
+		// next.ServeHTTP(w,r)
+
+		totalResponseSent.Add(1)
+		totalProccessingTimeMicrosecond.Add(int64(metrics.Duration.Microseconds()))
+		
+		totalResponseSentByStatus.Add(strconv.Itoa(metrics.Code), 1)
+		
+	})
+}
 
