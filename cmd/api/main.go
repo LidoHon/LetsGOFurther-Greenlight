@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -20,6 +21,7 @@ import (
 )
 
 const version = "1.0.0"
+var buildTime string
 
 type config struct {
 	port int
@@ -62,8 +64,8 @@ func main() {
 	}
 	// log.Println("Successfully loaded .env file")
 
-	dsn := os.Getenv("DB_DSN")
-	log.Printf("DB_DSN: %s", dsn)
+	// dsn := os.Getenv("DB_DSN")
+	// log.Printf("DB_DSN: %s", dsn)
 
 	var cfg config
 
@@ -94,7 +96,15 @@ func main() {
 		return nil
 	})
 
+	displayVersion:= flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion{
+		fmt.Printf("version:\t%s\n", version)
+		fmt.Printf("Build time:\t%s\n", buildTime)
+		os.Exit(0)
+	}
 
 	if cfg.db.dsn == "" {
 		log.Fatal("DB_DSN not set")

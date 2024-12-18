@@ -1,5 +1,8 @@
-# Include variables from the .envrc file
+# Include variables from the .env file
 include .env
+# variable declarations
+current_time = $(shell date --iso-8601=seconds)
+linker_flags = '-s -X main.buildTime=${current_time}'
 
 # =============================================================================== #
 # HELPERS
@@ -49,6 +52,18 @@ db/migrations/new:
 db/migrations/up: confirm
 	@echo "running up migratons..."
 	migrate -path ./migrations -database ${DB_DSN} up
+
+
+# ============================================================================== #
+# Build
+# ============================================================================== # 
+## build/api: build the cmd/api application
+.PHONY: build/api
+build/api:
+	@echo 'Building cmd/api...'
+	go build -ldflags=${linker_flags} -o=./bin/api ./cmd/api
+	GOOS=linux GOARCH=amd64 go build -ldflags=${linker_flags} -o=./bin/linux_amd64/api ./cmd/api
+
 
 
 # ============================================================================== #
