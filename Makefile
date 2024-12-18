@@ -2,6 +2,7 @@
 include .env
 # variable declarations
 current_time = $(shell date --iso-8601=seconds)
+git_description = $(shell git describe --always --dirty)
 linker_flags = '-s -X main.buildTime=${current_time}'
 
 # =============================================================================== #
