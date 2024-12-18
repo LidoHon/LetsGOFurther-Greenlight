@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/LidoHon/LetsGOFurther-Greenlight.git/internal/data"
-	"github.com/LidoHon/LetsGOFurther-Greenlight.git/internal/validator"
 	"github.com/felixge/httpsnoop"
+	"github.com/pascaldekloe/jwt"
 	"github.com/tomasen/realip"
 	"golang.org/x/time/rate"
 )
@@ -87,6 +87,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("vary", "Authorization")
 		authorizationHeader := r.Header.Get("Authorization")
+
 		if authorizationHeader == "" {
 			r = app.contextSetUser(r, data.AnonymousUser)
 			next.ServeHTTP(w, r)
@@ -101,26 +102,51 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		token := headerParts[1]
 
-		v := validator.New()
-
-		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
-			app.invalidAuthenticationTokenResponse(w, r)
+		claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secret))
+		if err != nil {
+			app.invalidAuthenticationTokenResponse(w,r)
 			return
 		}
 
-		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if !claims.Valid(time.Now()){
+			app.invalidAuthenticationTokenResponse(w,r)
+			return
+		}
+
+		if claims.Issuer != "liduhon3@gmail.com"{
+			app.invalidAuthenticationTokenResponse(w,r)
+			return
+		}
+
+		if !claims.AcceptAudience("liduhon3@gmail.com"){
+			app.invalidAuthenticationTokenResponse(w,r)
+			return
+		}
+
+		userID, err := strconv.ParseInt(claims.Subject, 10, 64)
 		if err != nil {
-			switch {
+			app.serverErrorResponse(w,r,err)
+			return
+		}
+
+
+		user, err := app.models.Users.Get(userID)
+		if err != nil {
+			switch{
 			case errors.Is(err, data.ErrRecordNotFound):
-				app.invalidAuthenticationTokenResponse(w, r)
+				app.invalidAuthenticationTokenResponse(w,r)
+				return
 			default:
-				app.serverErrorResponse(w, r, err)
+				app.serverErrorResponse(w,r,err)
+
 			}
 			return
 		}
 
 		r = app.contextSetUser(r, user)
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w,r)
+
+	
 	})
 }
 

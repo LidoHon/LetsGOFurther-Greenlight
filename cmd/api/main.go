@@ -21,10 +21,9 @@ import (
 )
 
 var (
-	version = "1.0.0"
+	version   = "1.0.0"
 	buildTime string
 )
-
 
 type config struct {
 	port int
@@ -49,6 +48,9 @@ type config struct {
 	}
 	cors struct {
 		trustedOrigins []string
+	}
+	jwt struct {
+		secret string
 	}
 }
 
@@ -98,12 +100,13 @@ func main() {
 		cfg.cors.trustedOrigins = strings.Fields(val)
 		return nil
 	})
+	flag.StringVar(&cfg.jwt.secret, "jwt-secret", "", "JWT secret")
 
-	displayVersion:= flag.Bool("version", false, "Display version and exit")
+	displayVersion := flag.Bool("version", false, "Display version and exit")
 
 	flag.Parse()
 
-	if *displayVersion{
+	if *displayVersion {
 		fmt.Printf("version:\t%s\n", version)
 		fmt.Printf("Build time:\t%s\n", buildTime)
 		os.Exit(0)
